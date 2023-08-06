@@ -1,4 +1,3 @@
-
 from typing import Callable, Tuple, TypeVar, List
 import os
 import re
@@ -24,36 +23,22 @@ class State:
         return self.function(state)
 
 def ls(directory: str) -> State:
-    return State(lambda state: (os.listdir(directory), state))
+    return State(lambda state: (os.listdir(os.path.join(state, directory)), state))
 
 def cat(filename: str) -> State:
-    with open(filename, 'r') as file:
-        file_content = file.read()
-    return State(lambda state: (file_content, state))
+    return State(lambda state: (open(os.path.join(state, filename), 'r').read(), state))
 
 def grep(pattern: str, text: str) -> State:
     return State.unit([line for line in text.split('\n') if re.search(pattern, line)])
 
-def repl():
-    state = '.'  # Initial state is the current directory
+def cd(directory: str) -> State:
+    return State(lambda state: (None, os.path.join(state, directory)))
 
-    while True:
-        # Read user input
-        command_line = input('> ')
-        command, *args = command_line.split()
+def pwd() -> State:
+    return State(lambda state: (state, state))
 
-        # Parse and execute the command
-        if command == 'ls':
-            result, state = ls(*args).run(state)
-            print(result)
-        elif command == 'cat':
-            result, state = cat(*args).run(state)
-            print(result)
-        elif command == 'grep':
-            pattern, filename = args
-            result, state = cat(filename).bind(lambda text: grep(pattern, text)).run(state)
-            print(result)
-        elif command == 'exit':
-            break
-        else:
-            print(f'Unknown command: {command}')
+def touch(filename: str) -> State:
+    return State(lambda state: (open(os.path.join(state, filename), 'a').close(), state))
+
+def rm(filename: str) -> State:
+    return State(lambda state: (os.remove(os.path.join(state, filename)), state))
