@@ -1,45 +1,38 @@
 
 # Monadic Shell Interface in Python
 
-This repository contains a Python script that demonstrates a monadic interface for shell-like commands.
+This project provides a monadic interface for executing shell commands in Python. The idea is to represent shell commands as functions that take a state (representing the state of the filesystem) and return a new state along with some result. These functions can be chained together using the `bind` method, which allows for easy composition of shell commands.
 
-The script defines a State monad and a set of commands that return State objects. These commands can be chained together using the bind method to create sequences of commands that pass their output from one command to the next.
+The current implementation includes Python equivalents of the following shell commands:
 
-This interface provides a flexible and powerful way to compose and execute shell-like commands in Python.
+- `ls`: List the contents of a directory
+- `cat`: Print the contents of a file
+- `grep`: Search for a pattern in some text
 
-## How to Use
+## Usage
 
-1. Define a set of commands as functions that return State objects. Each command should take its inputs as arguments and return a new State object that encapsulates a stateful computation.
-
-```python
-def ls(directory: str) -> State:
-    return State(lambda state: (os.listdir(directory), state))
-
-def cat(filename: str) -> State:
-    return State(lambda state: (open(filename, 'r').readlines(), state))
-
-def grep(pattern: str, text: List[str]) -> State:
-    return State.unit([line for line in text if re.search(pattern, line)])
-```
-
-2. Compose these commands using the bind method to create a sequence of commands. The bind method takes a function that returns a new State object and applies it to the value produced by the current State object.
+You can use this monadic shell interface in your own Python scripts by importing the `State` class and the shell command functions from `script.py`:
 
 ```python
-commands = ls('.').bind(lambda filenames: cat(filenames[0])).bind(lambda lines: grep('import', lines))
+from script import State, ls, cat, grep
 ```
 
-3. Run the composed commands with an initial state using the run method.
+You can then create a sequence of commands by calling these functions and chaining them together using the `bind` method. For example, to list the contents of the current directory, read the first file in the list, and then print the lines of that file that contain the word 'import', you could do:
 
 ```python
-result = commands.run('.')
+commands = ls('.').bind(lambda filenames: cat(filenames[0])).bind(lambda text: grep('import', text))
+result, _ = commands.run('.')
+print(result)
 ```
 
-## Running Tests
+This will print a list of lines from the first file in the current directory that contain the word 'import'.
 
-This repository also includes a set of test cases that demonstrate the functionality of the monadic shell interface. To run these tests, execute the script `tests.py`:
+## REPL
 
-```bash
-python tests.py
+This project also includes a REPL (Read-Eval-Print Loop) that allows you to use the monadic shell interface interactively. To start the REPL, run `repl.py`:
+
+```python
+python repl.py
 ```
 
-If all tests pass, the script will print "All tests passed." If any test fails, the script will print an error message and exit with a non-zero status code.
+You can then enter commands at the `>` prompt. The available commands are `ls`, `cat`, and `grep`. You can exit the REPL by typing `exit`.
