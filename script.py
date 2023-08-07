@@ -22,23 +22,47 @@ class State:
     def run(self, state: S) -> Tuple[A, S]:
         return self.function(state)
 
-def ls(directory: str) -> State:
-    return State(lambda state: (os.listdir(os.path.join(state, directory)), state))
+def resolve_path(state: str, path: str) -> str:
+    if path == '.' or path == './':
+        return state
+    elif path == '..':
+        return os.path.dirname(state)
+    else:
+        return path if os.path.isabs(path) else os.path.join(state, path)
+
+def cd(directory: str) -> State:
+    return State(lambda state: (None, resolve_path(state, directory)))
+
+def ls(directory: str, type: str = 'both', include_hidden: bool = False) -> State:
+    def filter_func(state: str, item: str) -> bool:
+        resolved_path = resolve_path(state, item)
+        if type == 'both':
+            return True
+        elif type == 'file':
+            return os.path.isfile(resolved_path) and not item.endswith('.pyc')
+        elif type == 'dir':
+            return os.path.isdir(resolved_path) and item != '__pycache__'
+        else:
+            raise ValueError("type must be 'both', 'file', or 'dir'")
+
+    def ls_func(state: str) -> Tuple[List[str], str]:
+        items = os.listdir(resolve_path(state, directory))
+        filtered_items = [item for item in items if filter_func(state, item) and (include_hidden or not item.startswith('.'))]
+        return filtered_items, state
+
+    return State(ls_func)
 
 def cat(filename: str) -> State:
-    return State(lambda state: (open(os.path.join(state, filename), 'r').read(), state))
+    return State(lambda state: (open(resolve_path(state, filename), 'r').read(), state))
+
+def touch(filename: str) -> State:
+    return State(lambda state: (open(resolve_path(state, filename), 'a').close(), state))
+
+def rm(filename: str) -> State:
+    return State(lambda state: (os.remove(resolve_path(state, filename)), state))
 
 def grep(pattern: str, text: str) -> State:
     return State.unit([line for line in text.split('\n') if re.search(pattern, line)])
 
-def cd(directory: str) -> State:
-    return State(lambda state: (None, os.path.join(state, directory)))
-
 def pwd() -> State:
     return State(lambda state: (state, state))
-
-def touch(filename: str) -> State:
-    return State(lambda state: (open(os.path.join(state, filename), 'a').close(), state))
-
-def rm(filename: str) -> State:
-    return State(lambda state: (os.remove(os.path.join(state, filename)), state))
